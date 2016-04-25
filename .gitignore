@@ -1,0 +1,6 @@
+# .gitignore for dysp-d017
+
+*.swp
+demo.prg
+README.html
+
