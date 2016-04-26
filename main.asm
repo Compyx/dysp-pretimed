@@ -4,9 +4,9 @@
 ;
 ; 2016-04-01
 
-music_sid ="/home/compyx/c64/HVSC/MUSICIANS/J/JCH/Blitter.sid"
-music_init = $1000
-music_play = $1003
+        music_sid = "Blitter.sid"
+        music_init = $1000
+        music_play = $1003
 
         DYSP_HEIGHT = 128
 

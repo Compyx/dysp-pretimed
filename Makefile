@@ -11,7 +11,7 @@ X64_FLAGS=
 
 TARGET=demo.prg
 MAIN=main.asm
-DEPS=
+DEPS=Blitter.sid
 
 
 all: $(TARGET)
