@@ -1,6 +1,6 @@
 # .gitignore for dysp-d017
 
 *.swp
-demo.prg
+dysp-pretimed.prg
 README.html
 

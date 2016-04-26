@@ -10,18 +10,30 @@
 
         DYSP_HEIGHT = 128
 
+        JOY_UP = $01
+        JOY_DOWN = $02
+        JOY_LEFT = $04
+        JOY_RIGHT = $08
+        JOY_FIRE = $10
+
         zp = $10
 
+        ; BASIC SYS line
         * = $0801
         .word (+), 2016
         .null $9e, ^start
 +       .word 0
 
+
+; Initialization code
+;
+; Set up sprites, initialize VIC, set up IRQ handlers
 start
         jsr $fda3
         jsr $fd15
         jsr $ff5b
         sei
+        ; set sprite colors
         clc
         ldx #0
 -       txa
@@ -30,6 +42,7 @@ start
         inx
         cpx #8
         bne -
+        ; create an example sprite in the tape buffer
         ldx #$3f
         lda #$ff
 -       sta $0340,x
@@ -40,6 +53,7 @@ start
 -       sta $07f8,x
         dex
         bpl -
+        ; set up interface text
         ldx #0
 -       lda iface_text,x
         sta $0400,x
@@ -88,9 +102,15 @@ start
         jmp *
 
 
+;----------------------------------------------------------------------------;
+;  IRQ handlers: $d020 changes are used to show the raster time used by the  ;
+;  various routines.                                                         ;
+;----------------------------------------------------------------------------;
+
         ; avoid timing critical loops to cross page boundaries
         .align 256
 irq1
+        ; 'Double IRQ' method to stabilize raster
         pha
         txa
         pha
@@ -138,11 +158,12 @@ irq2
 -       dex
         bne -
         nop
-        jsr dysp
+        jsr dysp        ; the actual DYSP loop
         lda #0
         sta $d021
         sta $d015
         dec $d020
+        ; responde to user input
         jsr joystick2
         jsr update_iface
         dec $d020
@@ -182,11 +203,14 @@ irq3
         lda #$1b
         sta $d011
         dec $d020
+        ; calculate X and Y movement of the DYSP
         jsr dysp_x_sinus
         jsr dysp_y_sinus
         dec $d020
+        ; clear the 'sprite enable' table
         jsr dysp_clear_timing_fast
         dec $d020
+        ; calculate the 'sprite enable' values for raster line of the DYSP
         jsr dysp_calc_timing_fast
         lda #0
         sta $d020
@@ -205,6 +229,26 @@ irq3
         pla
         rti
 
+; sprite positions: values for $d000-$d010
+sprite_positions
+        .byte $00, $a0
+        .byte $18, $a0
+
+        .byte $30, $a0
+        .byte $48, $a0
+
+        .byte $60, $a0
+        .byte $78, $a0
+
+        .byte $90, $a0
+        .byte $a8, $a0
+        .byte $00
+
+;----------------------------------------------------------------------------;
+;                       User interface/DYSP control code                     ;
+;----------------------------------------------------------------------------;
+
+; DYSP sinus control parameters
 dysp_x_idx1     .byte 0
 dysp_x_idx2     .byte 0
 
@@ -212,7 +256,7 @@ dysp_y_idx1     .byte 0
 dysp_y_idx2     .byte 0
 
 
-params
+params          ; offset 0 of the parameters, used by the joystick routine
 
 dysp_x_adc1     .byte 12
 dysp_x_adc2     .byte 9
@@ -224,12 +268,90 @@ dysp_y_adc2     .byte $f6
 dysp_y_spd1     .byte $fe
 dysp_y_spd2     .byte $3
 
+
+; colorram locations of the parameter values
 param_colram
         .word $d807, $d811, $d81c, $d826
         .word $d82f, $d839, $d844, $d84e
 
+
+; index in the parameter list for the joystick routine
 param_index     .byte 0
 
+; Text for the user interface
+iface_text
+        .enc screen
+        ;      0123456789abcdef0123456789abcdef01234567
+        .text "xadc1: 00 xadc2: 00  xspd1: 00 xspd2: 00"
+        .text "yadc1: 00 yadc2: 00  yspd1: 00 yspd2: 00"
+        .text "                                        "
+        .text "joystick in port 2:                     "
+        .text "                                        "
+        .text "  left/right  - select parameter        "
+        .text "  up/down     - adjust parameter        "
+        .text "  fire button - set parameter to 0      "
+iface_text_end
+
+; Translate A into hexadecimal digits in A (bit 7-4) and X (bit 3-0)
+hex_digits
+        pha
+        and #$0f
+        cmp #$0a
+        bcs +
+        adc #$3a
++       sbc #$09
+        tax
+        pla
+        lsr
+        lsr
+        lsr
+        lsr
+        cmp #$0a
+        bcs +
+        adc #$3a
++       sbc #$09
+        rts
+
+; Update the interface's parameter display
+update_iface
+        lda dysp_x_adc1
+        jsr hex_digits
+        sta $0407
+        stx $0408
+        lda dysp_x_adc2
+        jsr hex_digits
+        sta $0411
+        stx $0412
+        lda dysp_x_spd1
+        jsr hex_digits
+        sta $041c
+        stx $041d
+        lda dysp_x_spd2
+        jsr hex_digits
+        sta $0426
+        stx $0427
+
+        lda dysp_y_adc1
+        jsr hex_digits
+        sta $042f
+        stx $0430
+        lda dysp_y_adc2
+        jsr hex_digits
+        sta $0439
+        stx $043a
+        lda dysp_y_spd1
+        jsr hex_digits
+        sta $0444
+        stx $0445
+        lda dysp_y_spd2
+        jsr hex_digits
+        sta $044e
+        stx $044f
+        rts
+
+
+
+; highlight the currently adjustable parameter
 param_highlight
         ; clear param highlighting
         ldx #0
@@ -262,12 +384,7 @@ param_highlight
 
         rts
 
-JOY_UP = $01
-JOY_DOWN = $02
-JOY_LEFT = $04
-JOY_RIGHT = $08
-JOY_FIRE = $10
-
+; Check user input from joystick #2
 joystick2
         lda #8
         beq +
@@ -327,16 +444,19 @@ joy2_fire
 
 
 
-
+; Calculate DYSP Y-movement
 dysp_y_sinus
         ldx dysp_y_idx1
         ldy dysp_y_idx2
+        ; unroll loop for speed:
 .for index = 0, index < 8, index = index + 1
         lda ysinus,x
         clc
         adc ysinus,y
         adc #$32
         sta sprite_positions + 1 + (index * 2)
+.if index < 7
+        ; only needed 7 times
         txa
         clc
         adc dysp_y_adc1
@@ -345,6 +465,7 @@ dysp_y_sinus
         clc
         adc dysp_y_adc2
         tay
+.endif
 .next
         lda dysp_y_idx1
         clc
@@ -357,9 +478,10 @@ dysp_y_sinus
         rts
 
 
-
+; temp storage for $d010 calculations
 xmsb_tmp .byte 0
 
+; Calculate DYSP X-movement using two sinus tables added together
 dysp_x_sinus
         lda #0
         sta xmsb_tmp
@@ -367,7 +489,7 @@ dysp_x_sinus
         ldx dysp_x_idx1
         ldy dysp_x_idx2
 
-
+        ; once again unroll loop for speed
 .for index = 0, index < 8, index = index + 1
         lda xsinus_256,x
         clc
@@ -378,6 +500,8 @@ dysp_x_sinus
         ora #(1 << index)
         sta xmsb_tmp
 +
+.if index < 7
+        ; this section is only needed 7 times
         txa
         clc
         adc dysp_x_adc1
@@ -386,10 +510,12 @@ dysp_x_sinus
         clc
         adc dysp_x_adc2
         tay
+.endif
 .next
+        ; store  $d010 value in the IRQ handler
         lda xmsb_tmp
         sta sprite_positions + 16
-        
+
         lda dysp_x_idx1
         clc
         adc dysp_x_spd1
@@ -400,82 +526,19 @@ dysp_x_sinus
         sta dysp_x_idx2
         rts
 
-iface_text
-        .enc screen
-        ;      0123456789abcdef0123456789abcdef01234567
-        .text "xadc1: 00 xadc2: 00  xspd1: 00 xspd2: 00"
-        .text "yadc1: 00 yadc2: 00  yspd1: 00 yspd2: 00"
-        .text "                                        "
-        .text "joystick in port 2:                     "
-        .text "                                        "
-        .text "  left/right  - select parameter        "
-        .text "  up/down     - adjust parameter        "
-        .text "  fire button - set parameter to 0      "
-iface_text_end
-
-hex_digits
-        pha
-        and #$0f
-        cmp #$0a
-        bcs +
-        adc #$3a
-+       sbc #$09
-        tax
-        pla
-        lsr
-        lsr
-        lsr
-        lsr
-        cmp #$0a
-        bcs +
-        adc #$3a
-+       sbc #$09
-        rts
-
-update_iface
-        lda dysp_x_adc1
-        jsr hex_digits
-        sta $0407
-        stx $0408
-        lda dysp_x_adc2
-        jsr hex_digits
-        sta $0411
-        stx $0412
-        lda dysp_x_spd1
-        jsr hex_digits
-        sta $041c
-        stx $041d
-        lda dysp_x_spd2
-        jsr hex_digits
-        sta $0426
-        stx $0427
-
-        lda dysp_y_adc1
-        jsr hex_digits
-        sta $042f
-        stx $0430
-        lda dysp_y_adc2
-        jsr hex_digits
-        sta $0439
-        stx $043a
-        lda dysp_y_spd1
-        jsr hex_digits
-        sta $0444
-        stx $0445
-        lda dysp_y_spd2
-        jsr hex_digits
-        sta $044e
-        stx $044f
-        rts
-
-
-
-
-dysp_sprite_enable
-        .fill DYSP_HEIGHT, 0
 
 
         .align 256      ; avoid page boundary crossing in raster bars
+
+; The actual DYSP routine:
+;
+; The access to the 'timing' table is what makes this possible. It contains,
+; for each raster line, the number of cycles the sprites use. By storing that
+; value in the BPL argument we can waste between 0 and 17 cycles inclusive.
+;
+; Unrolling this loop and altering the code which calculates the cycle waste
+; values (storing them directly in the unrolled code, not in a table), we can
+; easily add three raster splits.
 dysp
         ldy #8
         ldx #0
@@ -503,20 +566,6 @@ _delay  bpl * + 2
         bne -
         rts
 
-sprite_positions
-        .byte $00, $a0
-        .byte $18, $a0
-
-        .byte $30, $a0
-        .byte $48, $a0
-
-        .byte $60, $a0
-        .byte $78, $a0
-
-        .byte $90, $a0
-        .byte $a8, $a0
-        .byte $00
-
 .cerror * > $0fff, "code section too large!"
 
         * = $2000
@@ -531,12 +580,24 @@ xsinus_96
 
 
         .align 256
+
+; The 'sprite enable' table, this is where the number of active sprites per
+; raster line is stored. The values in this table are used as index into the
+; 'cycles' table to get the proper amount of cycles to skip in the DYSP loop
+dysp_sprite_enable
+        .fill DYSP_HEIGHT, 0
+
+
+
+        .align 256
 d011_table
 .for row = 0, row < DYSP_HEIGHT, row = row + 1
         .byte $18 + ((row + 3) & 7)
 .next
 
         .align 256
+
+; Raster bar colors
 d021_table
         .byte $06, $00, $06, $04, $00, $06, $04, $0e
         .byte $00, $06, $04, $0e, $0f, $00, $06, $04
@@ -678,7 +739,7 @@ cycles
         .byte $0f, $11, $11, $11
         .byte $0d, $10, $11, $11
         .byte $0f, $11, $11, $11
-        
+
         ; $c0-$cf
         .byte $07, $09, $0c, $0c
         .byte $0c, $0d, $0d, $0d
@@ -704,6 +765,7 @@ cycles
         .byte $0f, $11, $11, $11
 
 
+; Clear the 'sprite enable' table, unrolled for speed
 dysp_clear_timing_fast
         lda #0
 .for row = 0, row < DYSP_HEIGHT, row = row + 1
@@ -712,6 +774,13 @@ dysp_clear_timing_fast
         rts
 
 
+; Calculate the 'sprite enable' values for each raster line of the DYSP
+;
+; For each sprite, we ORA 21 bytes of the table with the bitmask for that
+; particular sprite. The result of these calculations is used to look up the
+; number of cycles to waste in the DYSP raster code
+;
+; Again unrolled for speed, but still takes a lot of raster time
 dysp_calc_timing_fast
         lda sprite_positions + 1
         sec
@@ -794,7 +863,6 @@ dysp_calc_timing_fast
 .next
 
         rts
-
 
 
 

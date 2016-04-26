@@ -8,21 +8,26 @@ Calculating how many cycles to waste on each line unfortunately takes a lot of
 raster time, so for actual demo code using a fixed Y-sinus with a pre-calculated
 'cycle-waste' table would be much faster, although far less flexible.
 
-This is just a proof of concept, right now, it's a bit of a mess.
+This is just a proof of concept, not demo ready, and way too old school.
+I'm planning to use this for and article on
+[codebase64.org](http://codebase64.org), once I've cleaned up the code a bit.
 
 
 Assembling
 ----------
 
-Use 64tass to assemble: `64tass -C -a -o demo.prg main.asm`, or use `make`.
+Use [64tass](https://sourceforge.net/projects/tass64/) to assemble:
+
+`64tass -C -a -o dysp.prg main.asm`
+
+Or use `make`. An additional target `make x64` exists, which will assemble the
+code and then run [VICE](https://sourceforge.net/projects/vice-emu/)'s x64
+binary to run the dysp. This will only work on Unix-like systems.
 
 
 SID tune
 --------
 
-The code references a sid tune to make sure we get proper raster jitter to
-stress test the stable raster routine. Unless you have your HVSC at
-`/home/compyx/c64/HVSC`, assembling will fail, so comment out any references
-to the tune.
+Included is a SID tune by JCH, a nice old school tune for an old school effect.
 
 
