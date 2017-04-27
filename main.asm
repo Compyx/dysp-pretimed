@@ -21,7 +21,7 @@
         ; BASIC SYS line
         * = $0801
         .word (+), 2016
-        .null $9e, ^start
+        .null $9e, format("%s", start)
 +       .word 0
 
 
@@ -280,7 +280,7 @@ param_index     .byte 0
 
 ; Text for the user interface
 iface_text
-        .enc screen
+        .enc "screen"
         ;      0123456789abcdef0123456789abcdef01234567
         .text "xadc1: 00 xadc2: 00  xspd1: 00 xspd2: 00"
         .text "yadc1: 00 yadc2: 00  yspd1: 00 yspd2: 00"
@@ -290,6 +290,7 @@ iface_text
         .text "  left/right  - select parameter        "
         .text "  up/down     - adjust parameter        "
         .text "  fire button - set parameter to 0      "
+        .enc "none"
 iface_text_end
 
 ; Translate A into hexadecimal digits in A (bit 7-4) and X (bit 3-0)
