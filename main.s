@@ -21,7 +21,7 @@
         ; BASIC SYS line
         * = $0801
         .word (+), 2016
-        .null $9e, format("%s", start)
+        .null $9e, format("%d", start)
 +       .word 0
 
 

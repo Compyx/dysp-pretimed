@@ -10,7 +10,7 @@ X64=`which x64`
 X64_FLAGS=
 
 TARGET=dysp-pretimed.prg
-MAIN=main.asm
+MAIN=main.s
 DEPS=Blitter.sid
 
 
@@ -26,5 +26,5 @@ x64: $(TARGET)
 
 .PHONY: clean
 clean:
-	rm $(TARGET)
+	rm -f $(TARGET)
 
