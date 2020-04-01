@@ -574,9 +574,9 @@ ysinus
         .byte ((DYSP_HEIGHT - 24) / 4)  + 0.5 + ((DYSP_HEIGHT - 24) / 4) * sin(range(256) * rad(360.0/256))
 
 xsinus_256
-        .byte 127.5 + 128 * sin(range(256) * rad(360.0/256))
+        .byte 128 + 127.5 * sin(range(256) * rad(360.0/256))
 xsinus_96
-        .byte 47.5 + 48 * sin(range(256) * rad(360.0/256))
+        .byte 48 + 47.5 * sin(range(256) * rad(360.0/256))
 
 
 
